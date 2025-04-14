@@ -163,6 +163,32 @@ impl Row {
         self.get_inner(&idx)
     }
 
+    /// Returns a string representation of the value at the specified index.
+    ///
+    /// The value can be specified either by its numeric index in the row, or by its column name.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the index is out of bounds or if the value cannot be converted to a string.
+    pub fn get_string<I>(&self, idx: I) -> Result<String, Error>
+    where
+        I: RowIndex + fmt::Display,
+    {
+        let idx = match idx.__idx(self.columns()) {
+            Some(idx) => idx,
+            None => return Err(Error::column(idx.to_string())),
+        };
+
+        match self.col_buffer(idx) {
+            Some(buffer) => {
+                str::from_utf8(buffer)
+                    .map(|s| s.to_string())
+                    .map_err(|e| Error::from_sql(Box::new(e), idx))
+            }
+            None => Ok(String::new()), // Return empty string for NULL values
+        }
+    }
+
     fn get_inner<'a, I, T>(&'a self, idx: &I) -> Result<T, Error>
     where
         I: RowIndex + fmt::Display,
